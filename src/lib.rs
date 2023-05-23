@@ -1,7 +1,21 @@
 pub mod host {
-    use platform::Host;
+    use platform::{ default_host, Host };
     use rodio::cpal::platform;
-    use rodio::cpal::HostUnavailable;
+
+
+    pub fn get_audio_host() -> Host {
+        match platform::host_from_id(platform::ALL_HOSTS[0]) {
+            Ok(x) => x,
+            Err(_) => default_host()
+        }
+    }
+}
+
+pub mod audio {
+    use rodio::{source::Source, Decoder, OutputStream};
+    use std::fs::File;
+    use std::io::BufReader;
+    use std::{thread, time};
 
     #[derive(Debug)]
     pub enum SoundEvent {
@@ -11,7 +25,7 @@ pub mod host {
         Default,
     }
 
-    fn match_event(event: SoundEvent) -> &'static str {
+    fn _match_event(event: SoundEvent) -> &'static str {
         match event {
             SoundEvent::Off => "Off Event",
             SoundEvent::Play => "Play Event",
@@ -19,17 +33,6 @@ pub mod host {
             SoundEvent::Default => "Default event",
         }
     }
-
-    pub fn get_system_host() -> Result<Host, HostUnavailable> {
-        platform::host_from_id(platform::ALL_HOSTS[0])
-    }
-}
-
-pub mod audio {
-    use rodio::{source::Source, Decoder, OutputStream};
-    use std::fs::File;
-    use std::io::BufReader;
-    use std::{thread, time};
 
     pub fn trap_beat(duration: u64) {
         // Get handle to default output device
