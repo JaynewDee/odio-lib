@@ -1,50 +1,63 @@
-pub mod host {
-    use platform::{ default_host, Host };
-    use rodio::cpal::platform;
+pub mod audio {
+    use rodio::cpal::default_host;
+    use rodio::cpal::{
+        platform::Host,
+        traits::{DeviceTrait, HostTrait},
+    };
+    use rodio::source::{SineWave, Source};
+    use rodio::OutputStream;
+    use rodio::Sink;
+    use rodio::{Device, SupportedStreamConfig};
+    use std::time::Duration;
 
+    pub struct AudioHandle {
+        host: Host,
+        sink: Sink,
+        frequency: f64,
+    }
 
-    pub fn get_audio_host() -> Host {
-        match platform::host_from_id(platform::ALL_HOSTS[0]) {
-            Ok(x) => x,
-            Err(_) => default_host()
+    impl Default for AudioHandle {
+        fn default() -> Self {
+            let host = default_host();
+            let (_, stream_handle) = OutputStream::try_default().unwrap();
+
+            let sink = Sink::try_new(&stream_handle).unwrap();
+
+            AudioHandle {
+                host,
+                sink,
+                frequency: 440.0,
+            }
         }
     }
-}
-
-pub mod audio {
-    use rodio::{source::Source, Decoder, OutputStream};
-    use std::fs::File;
-    use std::io::BufReader;
-    use std::{thread, time};
 
     #[derive(Debug)]
-    pub enum SoundEvent {
-        Off,
-        Play,
-        Pause,
+    pub enum Sound {
+        SineWave,
+        Source(String),
         Default,
     }
 
-    fn _match_event(event: SoundEvent) -> &'static str {
-        match event {
-            SoundEvent::Off => "Off Event",
-            SoundEvent::Play => "Play Event",
-            SoundEvent::Pause => "Pause event",
-            SoundEvent::Default => "Default event",
+    impl AudioHandle {
+        fn _play_sound(self, sound: Sound) {
+            match sound {
+                Sound::SineWave => println!("Sine Wave"),
+                Sound::Source(_) => println!("From file source"),
+                Sound::Default => println!("Default sound"),
+            }
         }
-    }
 
-    pub fn trap_beat(duration: u64) {
-        // Get handle to default output device
-        let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-        // Load a sound from a file, using a path relative to Cargo.toml
-        let file = BufReader::new(File::open("input/trap-loop.mp3").unwrap());
-        // Decode that sound file into a source
-        let source = Decoder::new(file).unwrap();
-        // Play the sound directly on the device
-        stream_handle.play_raw(source.convert_samples()).unwrap();
-        // The sound plays in a separate audio thread,
-        // so we need to keep the main thread alive while it's playing.
-        thread::sleep(time::Duration::from_secs(duration));
+        fn sine_wave(&self) {
+            let source = SineWave::new(440.0)
+                .take_duration(Duration::from_secs_f32(0.25))
+                .amplify(0.20);
+
+            self.sink.append(source);
+            self.sink.sleep_until_end();
+        }
+
+        pub fn test(&self) {
+            Self::sine_wave(self);
+        }
     }
 }
